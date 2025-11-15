@@ -4,13 +4,12 @@ O projeto foi desenvolvido por meio da plataforma www.wokwi.com e está disponí
 
 Este documento explica, de forma simples, alguns testes que você pode realizar usando o simulador Wokwi e o dashboard no Adafruit IO.
 
-##Quantas repetições foram detectadas
-
+- Quantas repetições foram detectadas
 - Se o movimento foi realizado com boa qualidade
 - Se o ritmo (RPM) está adequado
 - Se os dados estão chegando no Adafruit IO sem atraso
 - Como validar o funcionamento geral do sistema
-
+<br>
 🧪 1. Teste de Detecção de Repetições
 
 ✔ Objetivo: Verificar se o sistema conta corretamente cada repetição do exercício.
@@ -19,10 +18,9 @@ Este documento explica, de forma simples, alguns testes que você pode realizar 
 
 * Encontre o controle chamado ACCELERATION Z.
 * Faça o seguinte movimento manualmente:
-** Suba o valor de Z para acima de 0.5
-** Depois desça o Z para abaixo de 0.25
-
--> Isso simula uma repetição.
+  * Suba o valor de Z para acima de 0.5
+  * Depois desça o Z para abaixo de 0.25
+    * Isso simula uma repetição.
 
 🧭 O que você deve observar:
 * O visor OLED mostra “Meta: X/Y”
@@ -31,29 +29,29 @@ Este documento explica, de forma simples, alguns testes que você pode realizar 
 
 🎯 Sucesso quando:
 * Cada ciclo “sobe > desce” conta UMA repetição.
-
+<br>
 🧪 2. Teste de Qualidade da Repetição
 
 ✔ Objetivo: Verificar se o sistema consegue avaliar como a repetição foi feita.
 
 📝 Como fazer: 
 * Movimente o slider ACCELERATION Z de maneira suave e lenta
-** isso simula um movimento bem feito
+  * isso simula um movimento bem feito
 * Depois faça o mesmo movimento, mas variando Z de forma irregular
-** isso simula um movimento tremido ou mal executado
+  * isso simula um movimento tremido ou mal executado
 
 🧭 O que você deve observar:
 * No OLED:
-** Qult: qualidade da última repetição
-** Qavg: qualidade média da sessão
+  * Qult: qualidade da última repetição
+  * Qavg: qualidade média da sessão
 * No dashboard:
-** gauge ou gráfico de qualidade_rep
-** gráfico de qualidade_media_sessao
+  * gauge ou gráfico de qualidade_rep
+  * gráfico de qualidade_media_sessao
 
 🎯 Sucesso quando:
 * Movimentos suaves geram pontuação alta (>=50%)
 * Movimentos irregulares geram pontuação baixa (<=40%)
-
+<br>
 🧪 3. Teste de Ritmo / RPM (Frequência)
 
 ✔ Objetivo: Testar se o sistema calcula corretamente o ritmo das repetições.
@@ -65,14 +63,14 @@ Este documento explica, de forma simples, alguns testes que você pode realizar 
 🧭 O que o dashboard deve mostrar:
 * Gráfico do feed frequencia
 * Valores típicos:
-** 0–10 RPM: movimento muito lento
-** 10–20 RPM: ritmo normal
-** 20–34 RPM: ritmo mais rápido
-** >35 RPM: ritmo muito alto e não recomendável
+  * 0–10 RPM: movimento muito lento
+  * 10–20 RPM: ritmo normal
+  * 20–34 RPM: ritmo mais rápido
+  * a partir de 35 RPM: ritmo muito alto e não recomendável
 
 🎯 Sucesso quando:
 * A linha do gráfico aumenta quando você faz movimentos mais rápidos.
-
+<br>
 🧪 4. Teste do Score Médio da Sessão
 
 ✔ Objetivo: Conferir se a plataforma calcula a média de qualidade após várias repetições.
