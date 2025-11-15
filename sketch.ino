@@ -14,26 +14,23 @@ const char* password = "";
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883
 #define AIO_USERNAME    "iacocha"   // usuário Adafruit IO
-#define AIO_KEY  "aio_jiBI85p45UiYR15G7xgTy98zNmQB"   //  chave AIO
+#define AIO_KEY  "aio_iTol51EVB4xKTVXjPVnQoo6tyP4l"   //  chave AIO
 
 WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
-// Feed "repeticoes"
-Adafruit_MQTT_Publish feedRepeticoes = Adafruit_MQTT_Publish(
-  &mqtt, AIO_USERNAME "/feeds/repeticoes");
+// Feeds existentes
+Adafruit_MQTT_Publish feedRepeticoes = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/repeticoes");
+Adafruit_MQTT_Publish feedFrequencia  = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/frequencia");
+Adafruit_MQTT_Publish feedQualidade   = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/qualidade_rep");
+Adafruit_MQTT_Publish feedQualidadeMedia = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/qualidade_media_sessao");
 
-// Feed "frequencia"
-Adafruit_MQTT_Publish feedFrequencia = Adafruit_MQTT_Publish(
-  &mqtt, AIO_USERNAME "/feeds/frequencia");
+// --- Feeds para latência (RTT) ---
+Adafruit_MQTT_Publish feedLatencia = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/latencia");         // envia timestamp
+Adafruit_MQTT_Publish feedLatRtt  = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/latencia_rtt");     // opcional: publica RTT medido
 
-// NEW: Feed de qualidade (última rep)
-Adafruit_MQTT_Publish feedQualidade = Adafruit_MQTT_Publish(
-  &mqtt, AIO_USERNAME "/feeds/qualidade_rep");
-
-// NEW: Feed de qualidade média da sessão
-Adafruit_MQTT_Publish feedQualidadeMedia = Adafruit_MQTT_Publish(
-  &mqtt, AIO_USERNAME "/feeds/qualidade_media_sessao");
+// subscribe para receber o echo do Adafruit IO (automation deve publicar em latencia_echo)
+Adafruit_MQTT_Subscribe feedLatEchoSub = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/latencia_echo");
 
 // ------------------ CONFIG HARDWARE ------------------
 #define BUZZER_PIN 16
@@ -88,6 +85,12 @@ float qualidade_rep = 0.0f;
 double soma_qualidade = 0.0;
 float qualidade_media_sessao = 0.0f;
 
+// ------------------ VARIÁVEIS DE LATÊNCIA ------------------
+unsigned long lastLatencySentTimestamp = 0; // guarda o timestamp enviado mais recente (ms)
+unsigned long lastMeasuredRTT = 0; // último RTT medido (ms)
+unsigned long lastLatencyDisplayMillis = 0; // quando mostramos a latência no OLED
+const unsigned long LAT_DISPLAY_DURATION = 4000; // ms que mostra o Lat no OLED
+
 // ------------------ FUNÇÕES ------------------
 void MQTT_connect() {
   int8_t ret;
@@ -99,6 +102,9 @@ void MQTT_connect() {
     delay(5000);
   }
   Serial.println("MQTT conectado!");
+
+  // (Re)subscribe após conectar
+  mqtt.subscribe(&feedLatEchoSub);
 }
 
 // clamp helper
@@ -106,6 +112,21 @@ float clampf(float v, float lo, float hi) {
   if (v < lo) return lo;
   if (v > hi) return hi;
   return v;
+}
+
+// Envia timestamp para medir RTT (publica no feed "latencia")
+void enviarTimestampParaLatencia() {
+  unsigned long t0 = millis();
+  char payload[24];
+  // envia valor em ms como string
+  snprintf(payload, sizeof(payload), "%lu", t0);
+  if (feedLatencia.publish(payload)) {
+    lastLatencySentTimestamp = t0;
+    Serial.print("Timestamp enviado para latencia: ");
+    Serial.println(payload);
+  } else {
+    Serial.println("Falha ao publicar timestamp de latencia");
+  }
 }
 
 // ------------------ SETUP ------------------
@@ -139,12 +160,20 @@ void setup() {
 
   // MQTT
   MQTT_connect();
+
+  // opcional: enviar um primeiro timestamp após iniciar (para testar)
+  delay(500); // aguarda conexão estabilizar
+  enviarTimestampParaLatencia();
 }
 
 // ------------------ LOOP ------------------
 void loop() {
   // Garante conexão MQTT
   MQTT_connect();
+
+  // processa pacotes MQTT (chave para receber o echo)
+  // mantenho processPackets para garantir troca de pacotes; readSubscription também fará leitura
+  mqtt.processPackets(50);
 
   // Lê dados do sensor
   sensors_event_t a, g, t;
@@ -263,6 +292,10 @@ void loop() {
         Serial.println("Qualidade media (sessao) enviada!");
       }
 
+      // opcional: após cada repetição podemos sondar latência (ou você pode acionar manualmente)
+      // aqui envio um timestamp para medir RTT
+      enviarTimestampParaLatencia();
+
       // encerra coleta
       coletando_rep = false;
     }
@@ -288,6 +321,38 @@ void loop() {
     // Ativa aviso no OLED
     mostrarAviso = true;
     inicioAviso = millis();
+  }
+
+  // ----------------------------
+  // Processa subscriptions corretamente usando mqtt.readSubscription(...)
+  // ----------------------------
+  Adafruit_MQTT_Subscribe *subscription;
+  // readSubscription(timeout_ms) retorna ponteiro para a subscription que recebeu
+  while ((subscription = mqtt.readSubscription(10))) {
+    if (subscription == &feedLatEchoSub) {
+      // payload recebido do Adafruit IO (o echo da automation)
+      char *payload = (char *)subscription->lastread;
+      if (payload != NULL) {
+        unsigned long t_sent = strtoul(payload, NULL, 10);
+        unsigned long now = millis();
+        if (t_sent > 0) {
+          unsigned long rtt = now - t_sent;
+          lastMeasuredRTT = rtt;
+          lastLatencyDisplayMillis = millis();
+
+          Serial.print("RTT medido (ms): ");
+          Serial.println(rtt);
+
+          // publica RTT no feed latencia_rtt (opcional)
+          if (!feedLatRtt.publish((int32_t)rtt)) {
+            Serial.println("Falha ao publicar latencia_rtt");
+          } else {
+            Serial.println("latencia_rtt publicada");
+          }
+        }
+      }
+    }
+    // caso tenha outros subscriptions no futuro, trate aqui
   }
 
   // Exibição no OLED (atualiza a cada 200ms; layout minimalista)
@@ -329,6 +394,14 @@ void loop() {
       u8g2.print("Qavg:");
       u8g2.print((int)qualidade_media_sessao);
       u8g2.print("%");
+
+      // Se medimos uma RTT recentemente, mostramos Lat: XXms (por curto período)
+      if (millis() - lastLatencyDisplayMillis <= LAT_DISPLAY_DURATION && lastMeasuredRTT > 0) {
+        u8g2.setCursor(96, 58);
+        u8g2.print("Lat:");
+        u8g2.print((int)lastMeasuredRTT);
+        u8g2.print("ms");
+      }
 
       if (repeticoes_atuais >= repeticoes_meta) {
         u8g2.setCursor(64, 58);
