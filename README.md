@@ -12,6 +12,7 @@ Este documento explica, de forma simples, alguns testes que você pode realizar 
 - Como validar o funcionamento geral do sistema
 
 🧪 1. Teste de Detecção de Repetições
+
 ✔ Objetivo: Verificar se o sistema conta corretamente cada repetição do exercício.
 
 📝 Como fazer: No Wokwi, abra o painel do sensor MPU6050.
@@ -32,6 +33,7 @@ Este documento explica, de forma simples, alguns testes que você pode realizar 
 * Cada ciclo “sobe > desce” conta UMA repetição.
 
 🧪 2. Teste de Qualidade da Repetição
+
 ✔ Objetivo: Verificar se o sistema consegue avaliar como a repetição foi feita.
 
 📝 Como fazer: 
@@ -53,6 +55,7 @@ Este documento explica, de forma simples, alguns testes que você pode realizar 
 * Movimentos irregulares geram pontuação baixa (<=40%)
 
 🧪 3. Teste de Ritmo / RPM (Frequência)
+
 ✔ Objetivo: Testar se o sistema calcula corretamente o ritmo das repetições.
 
 📝 Como fazer:
@@ -71,6 +74,7 @@ Este documento explica, de forma simples, alguns testes que você pode realizar 
 * A linha do gráfico aumenta quando você faz movimentos mais rápidos.
 
 🧪 4. Teste do Score Médio da Sessão
+
 ✔ Objetivo: Conferir se a plataforma calcula a média de qualidade após várias repetições.
 
 📝 Como fazer:
